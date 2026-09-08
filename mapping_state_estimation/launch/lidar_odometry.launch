@@ -1,0 +1,72 @@
+<!--
+  LiDAR 里程计 Launch 文件 (Step 5)
+  使用方式:
+    roslaunch mapping_state_estimation lidar_odometry.launch
+    roslaunch mapping_state_estimation lidar_odometry.launch use_imu_prediction:=false
+    roslaunch mapping_state_estimation lidar_odometry.launch keyframe_translation_thresh:=1.0
+-->
+<launch>
+  <!-- ==============================================
+       ICP 参数
+       ============================================== -->
+  <arg name="icp_max_iterations"              default="15"
+       doc="ICP 最大迭代次数 (降低以提速)"/>
+  <arg name="icp_max_correspondence_dist"     default="0.3"
+       doc="最大对应点距离 (m)"/>
+  <arg name="icp_transformation_epsilon"      default="1e-4"
+       doc="变换收敛阈值 (平移 m, 旋转 rad) (放宽以提速)"/>
+  <arg name="icp_euclidean_fitness_epsilon"   default="1e-4"
+       doc="适应度收敛阈值 (MSE) (放宽以提速)"/>
+
+  <!-- ==============================================
+       关键帧参数
+       ============================================== -->
+  <arg name="keyframe_translation_thresh"     default="0.1"
+       doc="关键帧最小平移距离 (m)"/>
+  <arg name="keyframe_rotation_thresh"        default="0.2"
+       doc="关键帧最小旋转角度 (rad)"/>
+
+  <!-- ==============================================
+       IMU 预测
+       ============================================== -->
+  <arg name="use_imu_prediction"              default="true"
+       doc="使用 IMU yaw 变化作为 ICP 初始猜测"/>
+
+  <!-- ==============================================
+       发布控制
+       ============================================== -->
+  <arg name="publish_tf"                      default="true"
+       doc="是否广播 odom→base TF"/>
+  <arg name="odom_frame"                      default="odom"/>
+  <arg name="base_frame"                      default="base"/>
+  <arg name="max_cloud_points"                default="1000"
+       doc="ICP 输入点云最大点数 (降点提速: O(N²))"/>
+
+  <node name="lidar_odometry_node"
+        pkg="mapping_state_estimation"
+        type="lidar_odometry_node.py"
+        output="screen">
+
+    <param name="icp_max_iterations"
+           value="$(arg icp_max_iterations)"/>
+    <param name="icp_max_correspondence_dist"
+           value="$(arg icp_max_correspondence_dist)"/>
+    <param name="icp_transformation_epsilon"
+           value="$(arg icp_transformation_epsilon)"/>
+    <param name="icp_euclidean_fitness_epsilon"
+           value="$(arg icp_euclidean_fitness_epsilon)"/>
+
+    <param name="keyframe_translation_thresh"
+           value="$(arg keyframe_translation_thresh)"/>
+    <param name="keyframe_rotation_thresh"
+           value="$(arg keyframe_rotation_thresh)"/>
+
+    <param name="use_imu_prediction"
+           value="$(arg use_imu_prediction)"/>
+
+    <param name="publish_tf" value="$(arg publish_tf)"/>
+    <param name="odom_frame" value="$(arg odom_frame)"/>
+    <param name="base_frame" value="$(arg base_frame)"/>
+    <param name="max_cloud_points" value="$(arg max_cloud_points)"/>
+  </node>
+</launch>

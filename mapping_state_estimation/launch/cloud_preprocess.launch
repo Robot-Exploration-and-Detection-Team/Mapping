@@ -1,0 +1,25 @@
+<!--
+  LiDAR 点云预处理 Launch 文件 (Step 4)
+  使用方式:
+    roslaunch mapping_state_estimation cloud_preprocess.launch
+    roslaunch mapping_state_estimation cloud_preprocess.launch deskew_enabled:=false
+-->
+<launch>
+  <arg name="deskew_enabled"     default="true"   doc="是否启用运动去畸变"/>
+  <arg name="max_range"          default="40.0"   doc="最大有效距离 (m)"/>
+  <arg name="outlier_radius"     default="0.2"    doc="离群点检测半径 (m)"/>
+  <arg name="outlier_min_neighbors" default="2"   doc="离群点最小邻居数"/>
+  <arg name="voxel_leaf_size"    default="0.02"   doc="体素下采样分辨率 (m)"/>
+
+  <node name="cloud_preprocess_node"
+        pkg="mapping_state_estimation"
+        type="cloud_preprocess_node.py"
+        output="screen">
+
+    <param name="deskew_enabled"      value="$(arg deskew_enabled)"/>
+    <param name="max_range"           value="$(arg max_range)"/>
+    <param name="outlier_radius"      value="$(arg outlier_radius)"/>
+    <param name="outlier_min_neighbors" value="$(arg outlier_min_neighbors)"/>
+    <param name="voxel_leaf_size"     value="$(arg voxel_leaf_size)"/>
+  </node>
+</launch>

@@ -1,0 +1,224 @@
+# ==============================================================================
+# EKF 传感器融合配置 (Step 6)
+# ==============================================================================
+# 融合 IMU (1000Hz, 快但漂) 和 LiDAR 里程计 (10Hz, 慢但准)
+# 输出平滑的 odom → base TF
+#
+# 使用: roslaunch mapping_state_estimation ekf_fusion.launch
+# ==============================================================================
+
+# 发布频率
+frequency: 100.0
+
+# 静默期: 启动后等待传感器数据就绪的时间
+silent_tf_failure: 5.0
+
+# 传感器超时: 超过此时间未收到数据则抛弃传感器
+sensor_timeout: 0.5
+
+# ==============================================================================
+# 二维模式 (2D)
+# 只估计 x, y, yaw (以及对应的速度 x_vel, y_vel, yaw_vel)
+# 因为四足机器人在室内地面移动，z/roll/pitch 由机器人自身稳定
+# ==============================================================================
+two_d_mode: true
+
+# ==============================================================================
+# 参考坐标系
+# ==============================================================================
+map_frame: world
+odom_frame: odom
+base_link_frame: base
+world_frame: odom
+
+# ==============================================================================
+# 发布 TF: odom → base
+# ==============================================================================
+publish_tf: false
+publish_acceleration: false
+
+# ==============================================================================
+# 过程噪声协方差 (process_noise_covariance)
+# 15维状态: [x, y, z, roll, pitch, yaw, x_vel, y_vel, z_vel, roll_vel, pitch_vel, yaw_vel, x_acc, y_acc, z_acc]
+# 对角元素，值越大表示越不信任运动模型，越依赖传感器
+# ==============================================================================
+process_noise_covariance:
+  - 0.01    # x     ← FAST_LIO 主定位: 适度过程噪声, 让 EKF 跟随测量
+  - 0.01    # y
+  - 1e-9    # z     (2D 模式，z 基本不变)
+  - 1e-9    # roll  (2D 模式)
+  - 1e-9    # pitch (2D 模式)
+  - 0.06    # yaw   偏航过程噪声 (rad²)
+  - 0.01    # x_vel ← FAST_LIO 主定位: 适度过程噪声
+  - 0.01    # y_vel
+  - 1e-9    # z_vel
+  - 1e-9    # roll_vel
+  - 1e-9    # pitch_vel
+  - 0.06    # yaw_vel
+  - 1e-9    # x_acc ← 极小: 防止追赶期加速度漂移
+  - 1e-9    # y_acc
+  - 1e-9    # z_acc
+
+# ==============================================================================
+# 初始估计协方差 (initial_estimate_covariance)
+# 启动时对初始位姿的不确定性，设大一点（特别是位置，初始位置可能有误差）
+# ==============================================================================
+initial_estimate_covariance:
+  - 1.0     # x     (初始位置不确定)
+  - 1.0     # y
+  - 1e-9    # z
+  - 1e-9    # roll
+  - 1e-9    # pitch
+  - 1e-9    # yaw
+  - 0.1     # x_vel
+  - 0.1     # y_vel
+  - 1e-9    # z_vel
+  - 1e-9    # roll_vel
+  - 1e-9    # pitch_vel
+  - 1e-9    # yaw_vel
+  - 1e-9    # x_acc
+  - 1e-9    # y_acc
+  - 1e-9    # z_acc
+
+# ==============================================================================
+# ==== 传感器输入: IMU (1000Hz) ====
+# 使用: orientation (roll/pitch/yaw 直接观测), angular_velocity, linear_acceleration
+# ==============================================================================
+imu0: /trunk_imu
+imu0_config:
+  - false  # x       ← 不用IMU位置
+  - false  # y
+  - false  # z
+  - false  # roll     ← IMU roll/pitch/yaw 用作绝对姿态观测
+  - false  # pitch
+  - false  # yaw      ← 暂时关闭, 只测 LO
+  - false  # x_vel
+  - false  # y_vel
+  - false  # z_vel
+  - false  # roll_vel
+  - false  # pitch_vel
+  - false  # yaw_vel  ← 暂时关闭, 只测 LO
+  - false  # x_acc
+  - false  # y_acc
+  - false  # z_acc
+
+# IMU 是否去掉重力加速度 (Gazebo 中 IMU 数据已含重力，且仿真角度可靠)
+imu0_remove_gravitational_acceleration: true
+
+# IMU 协方差: [x, y, z, roll, pitch, yaw, x_vel, y_vel, z_vel, roll_vel, pitch_vel, yaw_vel, x_acc, y_acc, z_acc]
+# 值越小 = 越信任该传感器
+imu0_differential: false           # 使用绝对位姿 (非差值)
+imu0_relative: false               # 绝对姿态
+
+# Gazebo IMU 仿真中，orientation 很准，给低协方差
+imu0_pose_rejection_threshold: 1e9      # 基本不拒绝 IMU 姿态
+imu0_twist_rejection_threshold: 1e9
+imu0_linear_acceleration_rejection_threshold: 1e9
+imu0_angular_velocity_rejection_threshold: 1e9
+
+# ==============================================================================
+# ==== 传感器输入: LiDAR 里程计 (10Hz) ====
+# 使用: FAST_LIO 里程计 (经 fastlio_bridge 桥接为 odom→base)
+# 回退: 使用 ICP LiDAR 里程计时改为 /lidar_odom
+# ==============================================================================
+odom0: /fast_lio_odom_base
+odom0_config:
+  - true   # x     ← LiDAR 提供完整位姿
+  - true   # y
+  - false  # z     (2D 模式, z 不变)
+  - false  # roll  (2D 模式)
+  - false  # pitch (2D 模式)
+  - true   # yaw   ← 关键: LiDAR yaw 很准
+  - false  # x_vel ← LO 不计算速度, 全零不可用
+  - false  # y_vel
+  - false  # z_vel
+  - false  # roll_vel
+  - false  # pitch_vel
+  - false  # yaw_vel
+  - false  # x_acc
+  - false  # y_acc
+  - false  # z_acc
+
+odom0_differential: false           # 绝对位姿
+odom0_relative: false
+
+# LiDAR 位姿协方差 (比 IMU 低频率但位置更准)
+odom0_pose_rejection_threshold: 100.0   # 足够大, 防止临时 IMU 漂移后拒绝 LO
+odom0_twist_rejection_threshold: 100.0
+
+# ==============================================================================
+# 传感器协方差矩阵 (对每个使用的变量)
+# 顺序: [x, y, z, roll, pitch, yaw, x_vel, y_vel, z_vel, roll_vel, pitch_vel, yaw_vel, x_acc, y_acc, z_acc]
+# ==============================================================================
+
+# IMU orientation 协方差
+imu0_pose_covariance:
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-4   # roll  rad² → (0.01 rad)² ≈ 0.57°
+  - 1e-4   # pitch
+  - 1e-4   # yaw
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+
+# IMU angular_velocity 协方差
+imu0_twist_covariance:
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-6   # roll_vel  (rad/s)²
+  - 1e-6   # pitch_vel
+  - 1e-6   # yaw_vel
+  - 1e-9
+  - 1e-9
+  - 1e-9
+
+# LiDAR odom pose 协方差
+odom0_pose_covariance:
+  - 0.0001 # x  (0.01m)²  FAST_LIO ~cm 级精度
+  - 0.0001 # y
+  - 1e-9   # z
+  - 1e-9   # roll
+  - 1e-9   # pitch
+  - 0.0001 # yaw (0.01 rad ≈ 0.57°)²
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+
+# LiDAR odom twist 协方差
+odom0_twist_covariance:
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 0.02   # x_vel (0.14 m/s)²
+  - 0.02   # y_vel
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9
+  - 1e-9

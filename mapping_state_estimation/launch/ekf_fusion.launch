@@ -1,0 +1,48 @@
+<!--
+  EKF 传感器融合 Launch 文件 (Step 6)
+  融合 IMU (/trunk_imu) 和 LiDAR 里程计 (/lidar_odom)
+  输出平滑的 odom → base TF 和 /odometry/filtered
+
+  前置依赖: 步骤3 (imu_attitude), 步骤4 (cloud_preprocess), 步骤5 (lidar_odometry)
+  必须先启动仿真环境和上述节点。
+
+  使用方式:
+    roslaunch mapping_state_estimation ekf_fusion.launch
+-->
+<launch>
+  <!-- ==============================================
+       EKF 参数
+       ============================================== -->
+  <arg name="config_file"
+       default="$(find mapping_state_estimation)/config/ekf.yaml"
+       doc="EKF 配置文件路径"/>
+
+  <arg name="publish_tf" default="true"
+       doc="是否发布 odom→base TF (比赛: true, 建图接管全部TF)"/>
+
+  <arg name="odom0_topic" default="/fast_lio_odom_base"
+       doc="EKF 里程计输入话题 (FAST_LIO 桥接: /fast_lio_odom_base; ICP 回退: /lidar_odom)"/>
+
+  <!-- ==============================================
+       robot_localization EKF 节点
+       ============================================== -->
+  <node name="ekf_se"
+        pkg="robot_localization"
+        type="ekf_localization_node"
+        output="screen"
+        clear_params="true">
+
+    <rosparam command="load"
+              file="$(arg config_file)"/>
+
+    <!-- 覆盖 yaml 中的 odom0 话题, 支持 FAST_LIO / ICP 切换 -->
+    <param name="odom0" value="$(arg odom0_topic)"/>
+
+    <param name="publish_tf" value="$(arg publish_tf)"/>
+
+    <!-- 输出话题 -->
+    <remap from="odometry/filtered" to="/odometry/filtered"/>
+
+  </node>
+
+</launch>

@@ -1,0 +1,203 @@
+<!--
+  ==============================================================================
+  建图与状态估计 — 统一启动文件 (Step 10)
+  ==============================================================================
+  一键启动所有模块，提供标准化 API 给队友 (路径规划 + 目标识别)。
+
+  启动顺序:
+    1. imu_attitude       (步骤3) — IMU 姿态解算
+    2. cloud_preprocess   (步骤4) — 点云预处理
+    3. fastlio_mapping    (步骤5) — FAST_LIO 主定位 (LIO 紧耦合)
+    4. ekf_fusion         (步骤6) — EKF 传感器融合
+    5. grid_map           (步骤7+8) — 栅格地图 + 多楼层
+    6. loop_closure       (步骤9) — 回环检测 (可选)
+    7. static_tf + robot_pose (步骤10) — 标准化 API
+
+  对外 API:
+    /map                nav_msgs/OccupancyGrid     2D 栅格地图
+    /odometry/filtered  nav_msgs/Odometry          融合里程计
+    /robot_pose         geometry_msgs/PoseStamped  当前机器人位姿
+    /current_floor      std_msgs/Int8              当前楼层
+    world → odom TF                                全局修正
+    odom → base TF                                 里程计位姿
+    base → laser_livox TF (static)                 LiDAR 外参
+    base → trunk TF (static)                       躯干坐标系
+
+  使用方式:
+    # 基础模式 (不含回环检测)
+    roslaunch mapping_state_estimation mapping_master.launch
+
+    # 含回环检测
+    roslaunch mapping_state_estimation mapping_master.launch enable_loop_closure:=true
+
+    # 单楼层模式
+    roslaunch mapping_state_estimation mapping_master.launch multi_floor_enabled:=false
+
+    # 低 CPU 模式
+    roslaunch mapping_state_estimation mapping_master.launch low_cpu_mode:=true
+  ==============================================================================
+-->
+<launch>
+  <!-- ==============================================
+       全局开关
+       ============================================== -->
+  <arg name="enable_imu_attitude"     default="true"
+       doc="是否启动 IMU 姿态解算 (步骤3)"/>
+  <arg name="enable_cloud_preprocess" default="true"
+       doc="是否启动点云预处理 (步骤4)"/>
+  <arg name="enable_lidar_odometry"   default="true"
+       doc="是否启动 ICP LiDAR 里程计 (步骤5 回退方案)"/>
+  <arg name="enable_fast_lio"         default="true"
+       doc="是否用 FAST_LIO 作为主定位源 (步骤5 主方案)"/>
+  <arg name="enable_ekf"              default="true"
+       doc="是否启动 EKF 融合 (步骤6)"/>
+  <arg name="enable_grid_map"         default="true"
+       doc="是否启动栅格地图 (步骤7+8)"/>
+  <arg name="enable_loop_closure"     default="false"
+       doc="是否启动回环检测 (步骤9)"/>
+  <arg name="enable_static_tf"        default="true"
+       doc="是否发布静态 TF (步骤10)"/>
+
+  <!-- ==============================================
+       定位源选择 (步骤5): FAST_LIO 桥接 vs ICP 里程计
+       ============================================== -->
+  <arg name="odom0_topic_effective"   value="/fast_lio_odom_base" if="$(arg enable_fast_lio)"/>
+  <arg name="odom0_topic_effective"   value="/lidar_odom" unless="$(arg enable_fast_lio)"/>
+
+  <!-- ==============================================
+       模式预设
+       ============================================== -->
+  <arg name="low_cpu_mode"            default="false"
+       doc="低 CPU 模式: 增大下采样、降低发布频率"/>
+  <arg name="multi_floor_enabled"     default="true"
+       doc="是否启用多楼层管理"/>
+
+  <!-- ==============================================
+       IMU 姿态 (步骤3)
+       ============================================== -->
+  <arg name="imu_mode"                default="basic"
+       doc="IMU 模式: basic | complementary"/>
+
+  <!-- ==============================================
+       点云预处理 (步骤4)
+       ============================================== -->
+  <arg name="voxel_leaf_size"         default="0.05"
+       doc="体素下采样 (m), 低CPU模式建议 0.1"/>
+
+  <!-- ==============================================
+       LiDAR 里程计 (步骤5)
+       ============================================== -->
+  <arg name="icp_max_iterations"      default="30"
+       doc="ICP 最大迭代次数, 低CPU模式建议 20"/>
+
+  <!-- ==============================================
+       栅格地图 (步骤7+8)
+       ============================================== -->
+  <arg name="map_resolution"          default="0.05"
+       doc="地图分辨率 (m/格)"/>
+
+  <!-- ==============================================
+       低 CPU 模式: 覆盖参数
+       ============================================== -->
+  <arg name="voxel_size_effective"
+       value="0.10" if="$(arg low_cpu_mode)"/>
+  <arg name="voxel_size_effective"
+       value="$(arg voxel_leaf_size)" unless="$(arg low_cpu_mode)"/>
+
+  <arg name="icp_iter_effective"
+       value="20" if="$(arg low_cpu_mode)"/>
+  <arg name="icp_iter_effective"
+       value="$(arg icp_max_iterations)" unless="$(arg low_cpu_mode)"/>
+
+  <arg name="update_rate_effective"
+       value="2.0" if="$(arg low_cpu_mode)"/>
+  <arg name="update_rate_effective"
+       value="5.0" unless="$(arg low_cpu_mode)"/>
+
+  <!-- ==============================================
+       步骤3: IMU 姿态解算
+       ============================================== -->
+  <include if="$(arg enable_imu_attitude)"
+           file="$(find mapping_state_estimation)/launch/imu_attitude.launch">
+    <arg name="mode" value="$(arg imu_mode)"/>
+    <arg name="print_hz" value="2.0"/>
+  </include>
+
+  <!-- ==============================================
+       步骤4: 点云预处理
+       ============================================== -->
+  <include if="$(arg enable_cloud_preprocess)"
+           file="$(find mapping_state_estimation)/launch/cloud_preprocess.launch">
+    <arg name="voxel_leaf_size" value="$(arg voxel_size_effective)"/>
+    <arg name="deskew_enabled" value="true"/>
+  </include>
+
+  <!-- ==============================================
+       步骤5 (主方案): FAST_LIO 定位 + 坐标系桥接
+       FAST_LIO 输出 /fast_lio_odom (camera_init→body),
+       桥接为 /fast_lio_odom_base (odom→base) 供 EKF 融合。
+       ============================================== -->
+  <include if="$(arg enable_fast_lio)"
+           file="$(find mapping_state_estimation)/launch/fastlio.launch"/>
+
+  <!-- ==============================================
+       步骤5: LiDAR 里程计 (主节点, 不发布 TF)
+       当 EKF 启用时 TF 由 EKF 统一发布; 否则由下面的 fallback 发布
+       ============================================== -->
+  <include if="$(arg enable_lidar_odometry)"
+           file="$(find mapping_state_estimation)/launch/lidar_odometry.launch">
+    <arg name="icp_max_iterations" value="$(arg icp_iter_effective)"/>
+    <arg name="use_imu_prediction" value="true"/>
+    <arg name="publish_tf" value="false"/>
+  </include>
+
+  <!-- ==============================================
+       步骤6: EKF 传感器融合
+       ============================================== -->
+  <include if="$(arg enable_ekf)"
+           file="$(find mapping_state_estimation)/launch/ekf_fusion.launch">
+    <arg name="publish_tf" value="true"/>
+    <arg name="odom0_topic" value="$(arg odom0_topic_effective)"/>
+  </include>
+
+  <!-- ==============================================
+       步骤5 TF fallback: 仅当 EKF 未启用时由 LiDAR 里程计发布 TF
+       ============================================== -->
+  <include unless="$(arg enable_ekf)"
+           file="$(find mapping_state_estimation)/launch/lidar_odometry.launch"
+           ns="lidar_tf">
+    <arg name="publish_tf" value="true"/>
+    <arg name="use_imu_prediction" value="true"/>
+  </include>
+
+  <!-- ==============================================
+       步骤7+8: 2D 栅格地图 + 多楼层
+       ============================================== -->
+  <include if="$(arg enable_grid_map)"
+           file="$(find mapping_state_estimation)/launch/grid_map.launch">
+    <arg name="map_resolution" value="$(arg map_resolution)"/>
+    <arg name="multi_floor_enabled" value="$(arg multi_floor_enabled)"/>
+    <arg name="update_rate" value="$(arg update_rate_effective)"/>
+  </include>
+
+  <!-- ==============================================
+       步骤9: 回环检测 (可选)
+       ============================================== -->
+  <include if="$(arg enable_loop_closure)"
+           file="$(find mapping_state_estimation)/launch/loop_closure.launch"/>
+
+  <!-- ==============================================
+       步骤10: 静态 TF 外参 + robot_pose
+       ============================================== -->
+  <include if="$(arg enable_static_tf)"
+           file="$(find mapping_state_estimation)/launch/static_tf.launch"/>
+
+  <node name="robot_pose_publisher"
+        pkg="mapping_state_estimation"
+        type="robot_pose_publisher.py"
+        output="screen"
+        unless="$(arg low_cpu_mode)">
+    <!-- 低 CPU 模式不启动 robot_pose 独立节点, 用里程计话题代替 -->
+  </node>
+
+</launch>

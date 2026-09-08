@@ -1,0 +1,76 @@
+<!--
+  2D 占据栅格地图 Launch 文件 (Step 7 + Step 8)
+  包含多楼层管理功能。
+
+  前置依赖: 步骤4 (cloud_preprocess), 步骤5/6 (里程计)
+  输出:
+    /map              nav_msgs/OccupancyGrid    2D 占据栅格地图
+    /current_floor    std_msgs/Int8             当前楼层
+    world → odom TF                             全局修正 (初始 identity)
+
+  使用方式:
+    roslaunch mapping_state_estimation grid_map.launch
+    roslaunch mapping_state_estimation grid_map.launch multi_floor_enabled:=false
+-->
+<launch>
+  <!-- ==============================================
+       地图参数
+       ============================================== -->
+  <arg name="map_resolution"        default="0.05"
+       doc="地图分辨率 (m/格)"/>
+  <arg name="map_width"             default="40.0"
+       doc="地图宽度 (m)"/>
+  <arg name="map_height"            default="50.0"
+       doc="地图高度 (m)"/>
+
+  <!-- ==============================================
+       高度过滤
+       ============================================== -->
+  <arg name="z_min"                 default="0.1"
+       doc="点云最低高度 (m), 过滤地面以下"/>
+  <arg name="z_max"                 default="1.5"
+       doc="点云最高高度 (m), 过滤天花板以上"/>
+
+  <!-- ==============================================
+       占据概率
+       ============================================== -->
+  <arg name="prob_hit"              default="0.75"
+       doc="激光 hit 的占据概率"/>
+  <arg name="prob_miss"             default="0.35"
+       doc="激光 miss 的自由概率"/>
+
+  <!-- ==============================================
+       多楼层 (Step 8)
+       ============================================== -->
+  <arg name="multi_floor_enabled"   default="true"
+       doc="是否启用多楼层管理"/>
+  <arg name="floor_count"           default="3"
+       doc="楼层数量"/>
+  <arg name="floor_height"          default="3.0"
+       doc="层高 (m)"/>
+
+  <!-- ==============================================
+       发布参数
+       ============================================== -->
+  <arg name="update_rate"           default="5.0"
+       doc="地图发布频率 (Hz), 降频节省CPU"/>
+
+  <node name="grid_map_node"
+        pkg="mapping_state_estimation"
+        type="grid_map_node.py"
+        output="screen">
+
+    <param name="map_resolution"    value="$(arg map_resolution)"/>
+    <param name="map_width"         value="$(arg map_width)"/>
+    <param name="map_height"        value="$(arg map_height)"/>
+    <param name="z_min"             value="$(arg z_min)"/>
+    <param name="z_max"             value="$(arg z_max)"/>
+    <param name="prob_hit"          value="$(arg prob_hit)"/>
+    <param name="prob_miss"         value="$(arg prob_miss)"/>
+    <param name="multi_floor_enabled" value="$(arg multi_floor_enabled)"/>
+    <param name="floor_count"       value="$(arg floor_count)"/>
+    <param name="floor_height"      value="$(arg floor_height)"/>
+    <param name="update_rate"       value="$(arg update_rate)"/>
+  </node>
+
+</launch>

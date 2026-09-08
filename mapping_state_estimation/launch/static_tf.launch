@@ -1,0 +1,46 @@
+<!--
+  静态 TF 外参发布 (Step 10)
+  发布传感器外参 TF (base → laser_livox, base → trunk)
+
+  在比赛阶段替代 robot_state_publisher 发布这些静态 TF。
+  调试阶段这些 TF 由 URDF + robot_state_publisher 自动发布，
+  但比赛时你需要自己发以确保完全掌控。
+-->
+<launch>
+
+  <!-- world → camera_init: identity (FAST_LIO 起点与 world 原点重合) -->
+  <node name="static_tf_world_to_camera_init"
+        pkg="tf2_ros"
+        type="static_transform_publisher"
+        args="0.0 0.0 0.0 0.0 0.0 0.0 world camera_init"
+        output="log"/>
+
+  <!-- base → laser_livox: x=0.2, y=0.0, z=0.08, pitch=45° (0.785 rad) -->
+  <node name="static_tf_base_to_livox"
+        pkg="tf2_ros"
+        type="static_transform_publisher"
+        args="0.2 0.0 0.08 0.0 0.785 0.0 base laser_livox"
+        output="log"/>
+
+  <!-- base → trunk: identity (重合) -->
+  <node name="static_tf_base_to_trunk"
+        pkg="tf2_ros"
+        type="static_transform_publisher"
+        args="0.0 0.0 0.0 0.0 0.0 0.0 base trunk"
+        output="log"/>
+
+  <!-- trunk → imu_link: identity (重合) -->
+  <node name="static_tf_trunk_to_imu"
+        pkg="tf2_ros"
+        type="static_transform_publisher"
+        args="0.0 0.0 0.0 0.0 0.0 0.0 trunk imu_link"
+        output="log"/>
+
+  <!-- base → real_sense: x=0.28, y=0, z=0.043 -->
+  <node name="static_tf_base_to_realsense"
+        pkg="tf2_ros"
+        type="static_transform_publisher"
+        args="0.28 0.0 0.043 0.0 0.0 0.0 base real_sense"
+        output="log"/>
+
+</launch>

@@ -1,0 +1,31 @@
+<!--
+  IMU 姿态解算 Launch 文件
+  使用方式:
+    roslaunch mapping_state_estimation imu_attitude.launch
+    roslaunch mapping_state_estimation imu_attitude.launch mode:=complementary
+    roslaunch mapping_state_estimation imu_attitude.launch mode:=basic use_ground_truth:=true
+-->
+<launch>
+  <!-- ==============================================
+       模式选择:
+         basic          — 直接四元数 → 欧拉角 (推荐起步)
+         complementary — 互补滤波 (角速度积分 + orientation 修正)
+       ============================================== -->
+  <arg name="mode"            default="basic"    doc="basic | complementary"/>
+  <arg name="alpha"           default="0.98"     doc="互补滤波系数 [0,1], 仅 complementary 模式"/>
+  <arg name="print_hz"        default="10.0"     doc="终端打印频率 Hz"/>
+  <arg name="use_ground_truth" default="false"   doc="是否对比 ground_truth (仅调试)"/>
+
+  <node name="imu_attitude_node"
+        pkg="mapping_state_estimation"
+        type="imu_attitude_node.py"
+        output="screen">
+
+    <!-- 参数传递 -->
+    <param name="mode"            value="$(arg mode)"/>
+    <param name="alpha"           value="$(arg alpha)"/>
+    <param name="print_hz"        value="$(arg print_hz)"/>
+    <param name="use_ground_truth" value="$(arg use_ground_truth)"/>
+  </node>
+
+</launch>

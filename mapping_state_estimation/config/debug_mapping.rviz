@@ -1,0 +1,163 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+  - Class: rviz/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    # ============================================================
+    # 1. 栅格地图 - 最底层
+    # ============================================================
+    - Alpha: 0.7
+      Class: rviz/Map
+      Color Scheme: map
+      Draw Behind: false
+      Enabled: true
+      Name: 2D Occupancy Grid Map
+      Topic: /map
+      Update Topic: /map_updates
+      Use Timestamp: false
+
+    # ============================================================
+    # 2. LiDAR 扫描 - 实时叠加
+    # ============================================================
+    - Alpha: 1.0
+      Class: rviz/LaserScan
+      Color: 0; 255; 0
+      Color Transformer: FlatColor
+      Decay Time: 0.3
+      Enabled: true
+      Name: LiDAR Scan (/scan)
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (m): 0.02
+      Style: Points
+      Topic: /scan
+      Use Fixed Frame: true
+      Use rainbow: false
+
+    # ============================================================
+    # 3. EKF 融合里程计路径 - 蓝色 (你要验证的轨迹)
+    # ============================================================
+    - Alpha: 1.0
+      Buffer Length: 30000
+      Class: rviz/Path
+      Color: 0; 100; 255
+      Enabled: true
+      Line Style: Lines
+      Line Width: 0.03
+      Name: EKF Odometry Path (/odometry/filtered)
+      Offset: {X: 0, Y: 0, Z: 0}
+      Topic: /odometry/filtered
+      Value: true
+
+    # ============================================================
+    # 4. 地面实况路径 - 红色 (参考基准)
+    # ============================================================
+    - Alpha: 1.0
+      Buffer Length: 30000
+      Class: rviz/Path
+      Color: 255; 0; 0
+      Enabled: true
+      Line Style: Dashes
+      Line Width: 0.02
+      Name: Ground Truth Path (/state_from_gazebo/odom)
+      Offset: {X: 0, Y: 0, Z: 0}
+      Topic: /state_from_gazebo/odom
+      Value: true
+
+    # ============================================================
+    # 5. LiDAR 原始里程计路径 - 绿色 (默认隐藏)
+    # ============================================================
+    - Alpha: 1.0
+      Buffer Length: 30000
+      Class: rviz/Path
+      Color: 0; 255; 0
+      Enabled: false
+      Line Style: Lines
+      Line Width: 0.02
+      Name: LiDAR Odometry Path (/lidar_odom)
+      Offset: {X: 0, Y: 0, Z: 0}
+      Topic: /lidar_odom
+      Value: true
+
+    # ============================================================
+    # 6. TF 坐标系 (只显示关键帧)
+    # ============================================================
+    - Class: rviz/TF
+      Enabled: true
+      Frame Timeout: 5
+      Frames:
+        All Enabled: false
+        world: {Value: true}
+        map: {Value: true}
+        odom: {Value: true}
+        base: {Value: true}
+      Marker Scale: 0.3
+      Name: TF Frames
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+
+    # ============================================================
+    # 7. RobotModel - 需要完整TF链路，暂时禁用
+    #    (base→trunk→leg chain 由 robot_state_publisher 发布)
+    # ============================================================
+    - Alpha: 1.0
+      Class: rviz/RobotModel
+      Collision Enabled: false
+      Enabled: true
+      Links:
+        All Links Enabled: true
+      Name: Robot Model
+      Robot Description: robot_description
+      TF Prefix: ""
+      Update Interval: 0
+      Visual Enabled: true
+
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: world
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz/MoveCamera
+    - Class: rviz/Select
+    - Class: rviz/Measure
+    - Class: rviz/PublishPoint
+    - Class: rviz/Interact
+    - Class: rviz/SetGoal
+  Value: true
+  Views:
+    Current:
+      Class: rviz/Orbit
+      Distance: 15
+      Enable Stereo Rendering: false
+      Field of view: 0.785
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 2
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.01
+      Pitch: 1.2
+      Target Frame: odom
+      Yaw: 2.5
+    Saved:
+      - Class: rviz/Orbit
+        Distance: 40
+        Name: Top-down View
+        Pitch: 1.57
+        Target Frame: odom
+        Yaw: 0
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 900
+  Width: 1400

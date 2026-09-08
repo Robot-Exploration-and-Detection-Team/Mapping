@@ -1,0 +1,46 @@
+<launch>
+<!--
+  FAST_LIO 定位 + 坐标系桥接 (Step 5 主定位源)
+  ==============================================================================
+  启动 FAST_LIO (fastlio_mapping) 和坐标系桥接节点 (fastlio_bridge)，
+  将 FAST_LIO 的高精度 6-DoF 里程计接入标准化 pipeline。
+
+  输入:
+    /cloud_base    (cloud_preprocess 输出, base 系)
+    /trunk_imu     (仿真 IMU)
+
+  输出:
+    /fast_lio_odom        FAST_LIO 原始里程计 (camera_init → body)
+    /fast_lio_odom_base   标准坐标系里程计 (odom → base), 供 EKF 融合
+    /cloud_registered     全局点云 (可选, RViz 可视化)
+
+  由 mapping_master.launch 统一 include, 也可单独:
+    roslaunch mapping_state_estimation fastlio.launch
+  ==============================================================================
+-->
+    <arg name="config_file" default="$(find fast_lio)/config/sim_mid360.yaml" />
+
+    <!-- 加载 FAST_LIO 仿真配置 (lid_topic=/cloud_base, imu_topic=/trunk_imu) -->
+    <rosparam command="load" file="$(arg config_file)" />
+
+    <!-- 仿真调优参数 (与 mapping_sim.launch 保持一致) -->
+    <param name="feature_extract_enable" type="bool" value="0"/>
+    <param name="point_filter_num" type="int" value="3"/>
+    <param name="max_iteration" type="int" value="3"/>
+    <param name="filter_size_surf" type="double" value="0.5"/>
+    <param name="filter_size_map" type="double" value="0.5"/>
+    <param name="cube_side_length" type="double" value="1000"/>
+    <param name="runtime_pos_log_enable" type="bool" value="0"/>
+
+    <!-- FAST_LIO 主节点: /Odometry → /fast_lio_odom -->
+    <node pkg="fast_lio" type="fastlio_mapping" name="laserMapping" output="screen">
+        <remap from="/Odometry" to="/fast_lio_odom" />
+    </node>
+
+    <!-- 坐标系桥接: /fast_lio_odom (camera_init→body) → /fast_lio_odom_base (odom→base) -->
+    <node pkg="mapping_state_estimation" type="fastlio_bridge.py"
+          name="fastlio_bridge" output="screen">
+        <param name="publish_tf" value="false"/>  <!-- TF 由 EKF 统一发布 -->
+    </node>
+
+</launch>

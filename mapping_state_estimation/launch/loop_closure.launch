@@ -1,0 +1,36 @@
+<!--
+  回环检测 Launch 文件 (Step 9, 加分项)
+  检测机器人回到历史位置，修正全局漂移。
+
+  前置依赖: 步骤5 (lidar_odometry + keyframes), 步骤7/8 (grid_map)
+  输出:
+    world → odom TF  修正后的全局 TF
+
+  使用方式:
+    roslaunch mapping_state_estimation loop_closure.launch
+-->
+<launch>
+  <arg name="distance_threshold"      default="1.5"
+       doc="回环检测距离阈值 (m)"/>
+  <arg name="min_keyframe_gap"        default="30"
+       doc="最小关键帧间隔"/>
+  <arg name="icp_fitness_threshold"   default="0.1"
+       doc="ICP 验证适应度阈值"/>
+  <arg name="max_loop_closures"       default="5"
+       doc="最大回环次数"/>
+  <arg name="search_radius"           default="10.0"
+       doc="搜索半径 (m)"/>
+
+  <node name="loop_closure_node"
+        pkg="mapping_state_estimation"
+        type="loop_closure_node.py"
+        output="screen">
+
+    <param name="distance_threshold"    value="$(arg distance_threshold)"/>
+    <param name="min_keyframe_gap"      value="$(arg min_keyframe_gap)"/>
+    <param name="icp_fitness_threshold" value="$(arg icp_fitness_threshold)"/>
+    <param name="max_loop_closures"     value="$(arg max_loop_closures)"/>
+    <param name="search_radius"         value="$(arg search_radius)"/>
+  </node>
+
+</launch>
