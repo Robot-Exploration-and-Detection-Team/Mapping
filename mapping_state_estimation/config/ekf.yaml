@@ -69,7 +69,7 @@ initial_estimate_covariance:
   - 1e-9    # z
   - 1e-9    # roll
   - 1e-9    # pitch
-  - 1e-9    # yaw
+  - 1.0     # yaw   (初始航向不确定; 实际初始 yaw≈1.57 rad, 不能用 1e-9)
   - 0.1     # x_vel
   - 0.1     # y_vel
   - 1e-9    # z_vel
@@ -91,13 +91,13 @@ imu0_config:
   - false  # z
   - false  # roll     ← IMU roll/pitch/yaw 用作绝对姿态观测
   - false  # pitch
-  - false  # yaw      ← 暂时关闭, 只测 LO
+  - true   # yaw      ← 恢复: IMU 绝对航向观测
   - false  # x_vel
   - false  # y_vel
   - false  # z_vel
   - false  # roll_vel
   - false  # pitch_vel
-  - false  # yaw_vel  ← 暂时关闭, 只测 LO
+  - true   # yaw_vel  ← 恢复: IMU 角速度观测 (约束 yaw_vel, 防发散)
   - false  # x_acc
   - false  # y_acc
   - false  # z_acc
